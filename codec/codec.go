@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"context"
 	"fmt"
 	"math"
 
@@ -20,10 +21,10 @@ func (c *Codec) GetName() string {
 }
 
 // Count returns the number of tokens in the input string.
-func (c *Codec) Count(input string) (int, error) {
+func (c *Codec) Count(ctx context.Context, input string) (int, error) {
 	var count int
 
-	err := c.tokenize(input, func(_ uint, _ string) {
+	err := c.tokenize(ctx, input, func(_ uint, _ string) {
 		count++
 	})
 
@@ -31,12 +32,12 @@ func (c *Codec) Count(input string) (int, error) {
 }
 
 // Encode returns the token IDs and tokens for the input string.
-func (c *Codec) Encode(input string) ([]uint, []string, error) {
+func (c *Codec) Encode(ctx context.Context, input string) ([]uint, []string, error) {
 
 	var ids []uint
 	var tokens []string
 
-	err := c.tokenize(input, func(id uint, token string) {
+	err := c.tokenize(ctx, input, func(id uint, token string) {
 		ids = append(ids, id)
 		tokens = append(tokens, token)
 	})
@@ -44,17 +45,27 @@ func (c *Codec) Encode(input string) ([]uint, []string, error) {
 	return ids, tokens, err
 }
 
-func (c *Codec) tokenize(input string, yield func(uint, string)) error {
+func (c *Codec) tokenize(ctx context.Context, input string, yield func(uint, string)) error {
 	match, err := c.splitRegexp.FindStringMatch(input)
 	if err != nil {
 		return fmt.Errorf("error matching: %v", err)
 	}
 	for match != nil {
+		// Check for cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		piece := match.String()
 		if id, ok := c.vocabulary[piece]; ok {
 			yield(id, piece)
 		} else {
-			parts := c.mergePairs(piece)
+			parts, err := c.mergePairs(ctx, piece)
+			if err != nil {
+				return err
+			}
 
 			for i := range len(parts) - 1 {
 				token := piece[parts[i].offset:parts[i+1].offset]
@@ -94,7 +105,8 @@ type part struct {
 	rank   uint
 }
 
-func (c *Codec) mergePairs(piece string) []part {
+func (c *Codec) mergePairs(ctx context.Context, piece string) ([]part, error) {
+
 	parts := make([]part, len(piece)+1)
 	for i := range len(parts) {
 		parts[i] = part{i, math.MaxUint}
@@ -116,6 +128,13 @@ func (c *Codec) mergePairs(piece string) []part {
 	}
 
 	for {
+		// Check for cancellation at the beginning of each iteration
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		if len(parts) == 1 {
 			break
 		}
@@ -142,5 +161,5 @@ func (c *Codec) mergePairs(piece string) []part {
 		parts = append(parts[:minIndex+1], parts[minIndex+2:]...)
 	}
 
-	return parts
+	return parts, nil
 }
