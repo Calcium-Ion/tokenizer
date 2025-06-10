@@ -80,10 +80,11 @@ package tokenizer
 //}
 
 import (
+	"context"
 	"errors"
 	"strings"
 
-	"github.com/tiktoken-go/tokenizer/codec"
+	"github.com/Calcium-Ion/tokenizer/codec"
 )
 
 var (
@@ -93,8 +94,8 @@ var (
 
 type Codec interface {
 	GetName() string
-	Count(string) (int, error)
-	Encode(string) ([]uint, []string, error)
+	Count(context.Context, string) (int, error)
+	Encode(context.Context, string) ([]uint, []string, error)
 	Decode([]uint) (string, error)
 }
 

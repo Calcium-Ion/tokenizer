@@ -3,7 +3,7 @@ package tokenizer_test
 import (
 	"testing"
 
-	"github.com/tiktoken-go/tokenizer"
+	"github.com/Calcium-Ion/tokenizer"
 )
 
 type testCase struct {
