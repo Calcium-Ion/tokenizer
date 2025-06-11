@@ -1,6 +1,7 @@
 package tokenizer_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Calcium-Ion/tokenizer"
@@ -80,9 +81,10 @@ func TestP50kBase(t *testing.T) {
 }
 
 func runTests(t *testing.T, tok tokenizer.Codec, tests []testCase) {
+	context := context.Background()
 	for _, test := range tests {
 		t.Run(test.text, func(t *testing.T) {
-			ids, _, err := tok.Encode(test.text)
+			ids, _, err := tok.Encode(context, test.text)
 			if err != nil {
 				t.Fatalf("error encoding: %v", err)
 			}
@@ -98,7 +100,7 @@ func runTests(t *testing.T, tok tokenizer.Codec, tests []testCase) {
 				t.Errorf("decoding mismatch - want: %s got: %s", test.text, text)
 			}
 
-			count, err := tok.Count(test.text)
+			count, err := tok.Count(context, test.text)
 			if err != nil {
 				t.Fatalf("error counting: %v", err)
 			}
